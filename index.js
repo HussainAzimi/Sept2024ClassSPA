@@ -1,14 +1,14 @@
-import {header, nav, main, footer} from "./components";
+import { header, nav, main, footer } from "./components";
 import * as store from "./store";
 import { viewNotFound } from "./views";
 import Navigo from "navigo";
 import { camelCase } from "lodash";
 import axios from "axios";
 
-const router  = new Navigo("/");
+const router = new Navigo("/");
 
-function render(state = store.home){
-  document.querySelector("#root").innerHTML =`
+function render(state = store.home) {
+  document.querySelector("#root").innerHTML = `
   ${header(state)}
   ${nav(store.nav)}
   ${main(state)}
@@ -51,7 +51,7 @@ router.hooks({
       case "pizza":
         // New Axios get request utilizing already made environment variable
         axios
-          .get(`https://sc-pizza-api.onrender.com/pizzas`)
+          .get(`${process.env.PIZZA_PLACE_API_URL}/pizzas`)
           .then(response => {
             // We need to store the response to the state, in the next step but in the meantime let's see what it looks like so that we know what to store from the response.
             console.log("response", response);
@@ -62,11 +62,11 @@ router.hooks({
             console.log("It puked", error);
             done();
           });
-          break;
-      default :
+        break;
+      default:
         // We must call done for all views so we include default for the views that don't have cases above.
         done();
-        // break is not needed since it is the last condition, if you move default higher in the stack then you should add the break statement.
+      // break is not needed since it is the last condition, if you move default higher in the stack then you should add the break statement.
     }
   },
   already: (match) => {
@@ -75,28 +75,78 @@ router.hooks({
     render(store[view]);
   },
   after: (match) => {
+
+    const view = match?.data?.view ? camelCase(match.data.view) : "home";
+
+if (view === "order") {
+  // Add an event handler for the submit button on the form
+  document.querySelector("form").addEventListener("submit", event => {
+    event.preventDefault();
+
+    // Get the form element
+    const inputList = event.target.elements;
+    console.log("Input Element List", inputList);
+
+    // Create an empty array to hold the toppings
+    const toppings = [];
+
+    // Iterate over the toppings array
+
+    for (let input of inputList.toppings) {
+      // If the value of the checked attribute is true then add the value to the toppings array
+      if (input.checked) {
+        toppings.push(input.value);
+      }
+    }
+
+    // Create a request body object to send to the API
+    const requestData = {
+      customer: inputList.customer.value,
+      crust: inputList.crust.value,
+      cheese: inputList.cheese.value,
+      sauce: inputList.sauce.value,
+      toppings: toppings
+    };
+    // Log the request body to the console
+    console.log("request Body", requestData);
+
+    axios
+      // Make a POST request to the API to create a new pizza
+      .post(`${process.env.PIZZA_PLACE_API_URL}/pizzas`, requestData)
+      .then(response => {
+      //  Then push the new pizza onto the Pizza state pizzas attribute, so it can be displayed in the pizza list
+        store.pizza.pizzas.push(response.data);
+        router.navigate("/pizza");
+      })
+      // If there is an error log it to the console
+      .catch(error => {
+        console.log("It puked", error);
+      });
+  });
+}
+
     router.updatePageLinks();
 
     // add menu toggle to bars icon in nav bar
     document.querySelector(".fa-bars").addEventListener("click", () => {
-        document.querySelector("nav > ul").classList.toggle("hidden--mobile");
+      document.querySelector("nav > ul").classList.toggle("hidden--mobile");
     });
   }
 });
 
 router.on({
-"/": () => render(),
-":view": (match) => {
+  "/": () => render(),
+  ":view": (match) => {
 
-  const view = match?.data?.view ? camelCase(match.data.view) : "home"
+    const view = match?.data?.view ? camelCase(match.data.view) : "home"
 
-  if(view in store){
-    render(store[view]);
-  }else {
-    render(store.viewNotFount);
-    console.log(`view Not Found ${view}`);
+    if (view in store) {
+      render(store[view]);
+    } else {
+      render(store.viewNotFount);
+      console.log(`view Not Found ${view}`);
+    }
   }
-}
 }
 ).resolve();
 // add menu toggle to bars icon in nav bar
