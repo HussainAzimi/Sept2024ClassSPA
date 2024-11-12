@@ -47,7 +47,7 @@ const cors = (req, res, next) => {
 };
 
 
-
+app.use(cors);
 app.use(express.json());
 app.use(logging);
 
